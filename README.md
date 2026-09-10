@@ -15,7 +15,8 @@ Target range: **300 m** line-of-sight.
 | **2** | Messaging protocol | ✅ Built + 10 passing JVM tests |
 | **3** | Field trial logging | ✅ Built (same logger as Phase 1) |
 
-**Not yet measured:** RX sensitivity, and anything at distance. See [Open questions](#open-questions).
+**Not yet measured:** RX sensitivity, and anything at distance — the link is verified at ~5 m only.
+See [CONDITION.md](CONDITION.md) for a dated status report, and [Open questions](#open-questions).
 
 ---
 
@@ -34,7 +35,7 @@ So this is built entirely on non-connectable, non-scannable extended advertiseme
 These are numbers read off real hardware, not datasheet figures.
 
 ```
-TX power                    +1 dBm      <- see note
+TX power                 −1..+1 dBm     <- see note
 TX antenna                  −1 dBi
 RX antenna                  −1 dBi
 RX sensitivity (Coded S=8) −102 dBm     <- ASSUMED, not yet measured
@@ -46,6 +47,8 @@ Usable                       98 dB
 ```
 
 > **The +1 dBm is not a phone limitation.** `AdvertisingSetParameters.TX_POWER_HIGH` is *defined* as +1 dBm in the Android API. Extended advertising — the only path that can carry Coded PHY — cannot request more via the named constants. This costs ~7 dB versus what the chipset can physically do, and it is the single biggest practical constraint on the whole system.
+>
+> Observed on hardware: the probe reported **+1 dBm** and the messenger reported **−1 dBm** for the same request. Either the controller reports achieved rather than requested power, or it varies with radio state. Budget accordingly — 2 dB is real at these margins.
 
 ### Range, two-ray ground-reflection model
 
@@ -72,10 +75,13 @@ Model validation so far: at 5 m with phones lying flat, predicted −72 dBm, **m
 ```
 [0]     sender    random per install
 [1]     msgId     rolling 0–255
-[2]     totalLen  ciphertext length; 0 marks an ACK
-[3]     esi       encoding symbol index
+[2]     totalLen  ciphertext length; 0 marks a control packet
+[3]     esi       encoding symbol index; on control packets 0=beacon, 1=ACK
 [4..23] symbol    20 bytes
 ```
+
+Beacon and ACK must be distinguishable, or an idle beacon would false-ACK `msgId 0` once the
+counter wraps 255→0.
 
 Payloads are kept small deliberately. At S=8 you're at 8 µs/bit, so packet error probability scales with airtime — a long PDU at −102 dBm is a PDU that dies.
 
@@ -91,6 +97,9 @@ text → compress (only if smaller) → AES-256-GCM (once) → fragment → adve
 - **Nonce** is 12 random bytes prepended to the message — no counter to persist, no rollover.
 - **Key** is PBKDF2-HMAC-SHA256 over a shared passphrase. Fixed salt, because both phones must derive the same key with no exchange.
 - **Fountain:** round-robin symbol rotation (v1). See [Roadmap](#roadmap).
+- **Idle beacon:** when there is nothing to send the radio beacons rather than going silent, so
+  `pkt/s` and RSSI stay live at distance without anyone having to send a message. That is what
+  a range walk needs — you can watch RSSI decay as you walk, hands free.
 
 ### The exactness guarantee
 
@@ -128,6 +137,9 @@ Install `app/build/outputs/apk/debug/app-debug.apk` on **both** phones, or press
 2. Launch the app, grant the **Nearby devices** permission.
 3. Set the **same passphrase** on both (defaults to `anits300`). Different passphrases = messages arrive and are silently discarded.
 4. Type, press **Send**.
+
+Tap **⚙ Setup** for the passphrase, distance label and Phase 0 probe; it stays collapsed so the
+composer remains reachable with the keyboard up.
 
 `> text` is outgoing, `< text` is incoming, `✓ delivered` means an ACK came back.
 
