@@ -96,5 +96,9 @@ class Inbox {
     fun forget(sender: Int, msgId: Int) { parts.remove(sender shl 8 or msgId) }
 }
 
-fun ackPacket(sender: Int, msgId: Int) = byteArrayOf(sender.toByte(), msgId.toByte(), 0, 0) + ByteArray(SYM)
-fun isAck(p: ByteArray) = p.size >= HDR && p[2].toInt() == 0
+// totalLen == 0 marks a control packet; esi then says which kind.
+// Beacon and ACK must be distinguishable, or an idle beacon would false-ACK msgId 0.
+fun ackPacket(sender: Int, msgId: Int) = byteArrayOf(sender.toByte(), msgId.toByte(), 0, 1) + ByteArray(SYM)
+fun beaconPacket(sender: Int) = byteArrayOf(sender.toByte(), 0, 0, 0) + ByteArray(SYM)
+fun isControl(p: ByteArray) = p.size >= HDR && p[2].toInt() == 0
+fun isAck(p: ByteArray) = isControl(p) && p[3].toInt() == 1

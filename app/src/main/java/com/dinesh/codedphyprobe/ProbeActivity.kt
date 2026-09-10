@@ -93,15 +93,16 @@ class ProbeActivity : Activity() {
             setOnClickListener { reqTx = when (reqTx) { 1 -> 4; 4 -> 7; 7 -> 10; 10 -> 13; else -> 1 }; reset(); start() }
         }
 
-        setContentView(LinearLayout(this).apply {
+        val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             keepScreenOn = true
-            setPadding(32, 48, 32, 32)
             addView(out, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             addView(toggle, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             addView(reset, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
             addView(txStep, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-        })
+        }
+        setContentView(root)
+        padForInsets(root, (16 * resources.displayMetrics.density).toInt())
 
         val perms = if (Build.VERSION.SDK_INT >= 31)
             arrayOf(Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_SCAN)
